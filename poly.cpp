@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 #include <list>
+#include <string>
 #include <assert.h>
 
 // Need this to avoid a glm warning
@@ -30,9 +31,72 @@
 //./poly 5 2 3/2
 //Snubification failure: 1.05876 1.80118 8.79375e-05 1.1451e-05
 
+// Compounds
+
+// UC01: 2 3 3 2 3 3: 6 tetrahedra, rotational freedom
+// UC02: 2 3 3 4 2 3: 12 tetrahedra, rotational freedom
+// UC03: ditto, zrot = 0
+// UC04: ditto, zrot = pi/4
+// UC05: 2 3 3 2 3 5, zrot = pi/4, ico rotations
+// UC06: ditto, full ico group
+// UC07-08: 4 2 2 4 2 3, zrot
+// UC09: 4 2 3 2 3 5
+// UC10-11: 3 2 2 3 3 2 + snub + zrot & rot only or not
+// UC12:  --zrot -6 3 2 2 3 2 4
+// UC13-16: 3 2 4 3 2 5, or 3 2 3 3 2 5, zrot = various
+// UC17: 4 2 3 2 3 5
+// UC18: --zrot 4 2 3 3/2 2 3 5 + I symmetry
+// UC19: 3 2 3/2 3 2 5 with custom zrot
+// UC20-21: 5/2 2 2 10 2 2 + zrot
+// UC22-23: 3 2 2 12 2 2 + zrot + snub
+// UC24-25: 5/2 2 2 10 2 2 + zrot + snub
+// UC26-27: --zrot -10 5 2 2 5 3 2 with snub (or variable zrot)
+// UC28-29: --zrot 10 5/3 2 2 5 3 2 with snub
+// UC30-32: --zrot -6 3 2 2 3 4 2
+// UC32-33: 3 2 2 3 2 5 with zrot = pi/6 & rot only or not
+// UC34-35: 5 2 2 5 3 2 with zrot = pi/10 & rot only or not
+// UC36-37: 5/2 2 2 5 3 2 with zrot = pi/10 & rot only or not (need pentacle form).
+// UC38: --zrot 6 6 2 2 3 2 4
+// UC39: --zrot 6 6 2 2 3 2 5
+// UC40: --zrot 10 10 2 2 5 2 3
+// UC41: --zrot 10 10/3 2 2 5 2 3
+// UC42-43: 4 2 2 4 3 2
+// UC44-45: 5/2 2 2 5 3 2 zrot something...
+// UC46: --zrot 4 2 3 5 4 3 2
+// UC46: 2 3 3 2 3 3 as snub
+// UC47: 2 5 3 2 3 5
+// UC48: --zrot 4 2 5 5/2 4 3 2
+// UC49: 2 5/2 5 2 3 5
+// UC50: --zrot 4 2 5 5/2 4 3 2
+// UC51: 2 5/2 5 2 3 5
+// UC52: 2 3/2 3/2 2 3/2 3/2  (as snub)
+// UC53: 2 3 5/2 2 3 5
+// UC54: --zrot 4 2 3 3 4 2 3
+// UC55-56: as UC05-06
+// UC57: 4 2 3 2 3 5
+// UC58: 4/3 2 3 2 3 5
+// UC59: 4 2 3 2 3 5
+// UC60: 4/3 4 3 2 3 5
+// UC61: ./poly --zrot 8 3 3 3/2 3 2 5 (approx) ???
+// UC62: 4 2 3 2 3 5
+// UC63: 4 2 3/2 2 3 5 (omit blue face 3)
+// UC64: 4 4 3/2 2 3 5
+// UC65: 4 4/3 3 2 3 5
+// UC66: --zrot 4 4/3 3/2 2 2 3 5 (omit green face 2)
+// UC67: 4 2 3/2 2 3 5
+// UC68: 2 3 4 2 3 4
+// UC69: 2 3 5 2 3 5
+// UC70: 2 5/2 3 2 3 5
+// UC71: 2 5/3 3 2 3 5
+// UC72: 2 5/3 3/2 2 3 5
+// UC73: 2 5 5/2 2 3 5
+// UC74: 2 5 5/3 2 3 5
+// UC75: 3 5 5/3 3 2 5
+
 using std::max;
 using std::vector;
 using std::list;
+using std::string;
 using std::ostream;
 using std::cerr;
 using std::cout;
@@ -57,12 +121,14 @@ typedef vec4 Point4;
 ////////////////////////////////////////////////////////////////////////////////
 
 // Drawing options
-bool dual = false;
+int drawtype = 0;
 bool snubify = false;
 
-int style = 0;
+int style = 1;
 int nstyles = 2;
 bool doclamp = false;
+
+bool facecolour = false;
 
 // Trilinears
 vec3 afact; // Use to translate between trilinear and barycentric coords
@@ -79,7 +145,8 @@ bool needparams = true;
 
 // Constant data per Schwarz triangle
 std::vector<ivec4> regions;     // Fundamental regions in Wythoff construction
-std::vector<ivec3> adjacent;    // Adjacency relation for regions
+//std::vector<ivec3> adjacent;    // Adjacency relation for regions
+std::map<int,ivec3> adjacent;    // Adjacency relation for regions
 std::vector<vec3> points;       // Vertex positions for regions
 
 // Construct the Wythoff faces here. Have 3 maps
@@ -94,8 +161,8 @@ std::map<int,std::vector<float>> facecentres;
 std::vector<vec3> snubcentres;
 
 // Colour and lighting
-vec4 *facecolours[] = { &red, &green, &blue, &yellow, &white, &white, &white, &white };
-int nfacecolours = 8;
+vec4 *facecolours[] = { &red, &green, &blue, &yellow, &cyan, &white, &black, &purple, &orange, &pink };
+int nfacecolours = 9;
 
 // Whether to display faces
 bool omit[4] = { false, false, false, false };
@@ -143,11 +210,11 @@ void triangle1(double a, double b, double c,
                vec3 &p, vec3 &q, vec3 &r)
 {
   p = vec3(0,0,1);
-  q = vec3(sin(c), 0, cos(c));
+  q = vec3(0,sin(c), cos(c));
   double rz = cos(b);
-  double rx = (cos(a)-q.z*rz)/q.x;
-  double t = 1-rz*rz-rx*rx;
-  r = vec3(rx,sqrt(max(t,0.0)),rz);
+  double ry = (cos(a)-q.z*rz)/q.y;
+  double t = 1-rz*rz-ry*ry;
+  r = vec3(sqrt(max(t,0.0)),ry,rz);
 }
 
 vec3 reflect(vec3 p, vec3 q, vec3 r)
@@ -163,9 +230,10 @@ vec3 reflect(vec3 p, vec3 q, vec3 r)
 void setColour(const vec4 &colour);
 void setColour(const vec4 *colour);
 void setNormal(const vec3 &norm);
-void drawvertex(const vec3 &p);
-void drawvertex(const vec4 &p); // Homogeneous
+void drawvertex(vec3 p);
+void drawvertex(vec4 p); // Homogeneous
 
+// v is the point index
 void makefaces(int v, int p, int q, int r) 
 {
   std::vector<int> facelist;
@@ -177,7 +245,8 @@ void makefaces(int v, int p, int q, int r)
     }
   }
   if (!facelist.empty()) {
-    for (int i = 0; i < (int)facelist.size(); i++) {
+    int fsize = facelist.size();
+    for (int i = 0; i < fsize; i++) {
       if (regions[facelist[i]][3] > 0) {
         std::swap(facelist[0],facelist[i]);
         break;
@@ -185,8 +254,8 @@ void makefaces(int v, int p, int q, int r)
     }
     assert(regions[facelist[0]][3] == 1);
     // Match up successive regions.
-    for (int i = 0; i < (int)facelist.size(); i++) {
-      for (int j = i+1; j < (int)facelist.size(); j++) {
+    for (int i = 0; i < fsize; i++) {
+      for (int j = i+1; j < fsize; j++) {
         if (((i%2 == 0) && regions[facelist[i]][r] == regions[facelist[j]][r]) ||
             ((i%2 == 1) && regions[facelist[i]][q] == regions[facelist[j]][q])) {
           std::swap(facelist[j],facelist[i+1]);
@@ -194,14 +263,6 @@ void makefaces(int v, int p, int q, int r)
         }
       }
     }
-
-#if 0
-    cout << v << ": " << facelist.size();
-    for (int i = 0; i < (int)facelist.size(); i++) {
-      cout << " " << facelist[i];
-    }
-    cout << "\n";
-#endif
     // Insert into the p'th facemap.
     facemap[p][v].swap(facelist);
   }
@@ -239,30 +300,38 @@ float sgn(float x) {
 void drawpointface(int k, int v, std::vector<int> &facelist, int snubface)
 {
   assert(!facelist.empty());
-  vector<vec3> pointlist;
+  vector<vec3> plist;
   for (int i = 0; i < (int)facelist.size(); i++) {
     int n = facelist[i];
     ivec4 &f = regions[n];
     if (!snubify || f[3] != snubface) {
       vec3 &p = regionpoints[n];
-      pointlist.push_back(p);
+      plist.push_back(p);
     }
   }
-  int npoints = pointlist.size();
-  vec3 centre = facecentres[k][v]*points[v];
+  int npoints = plist.size();
+  float fact = 1.0f;
+  vec3 centre = fact*facecentres[k][v]*points[v];
   
   if (npoints <= 2) return;
   // Faces are always square on so the centre is the normal
   //setNormal(points[v]*sgn(facecentres[k][v]));
   setNormal(points[v]*sgn(facecentres[k][v]));
   vec3 offset = explode*centre;
+  if (facecolour) setColour(facecolours[k%nfacecolours]);
   for (int i = 0; i < npoints; i++) {
     if (npoints == 3) {
-      drawvertex(pointlist[i]+offset);
+      drawvertex(plist[i]+offset);
     } else {
-      drawvertex(centre+offset);
-      drawvertex(pointlist[i]+offset);
-      drawvertex(pointlist[(i+1)%npoints]+offset);
+      int p1 = i;
+      int p2 = (i+1)%npoints;
+      vec3 norm = cross(vec3(centre-plist[p2]),vec3(plist[p1]-centre));
+      if (length(norm) > eps) {
+        //setNormal(normalize(norm));
+        drawvertex(centre+offset);
+        drawvertex(plist[p1]+offset);
+        drawvertex(plist[p2]+offset);
+      }
     }
   }
 }
@@ -283,13 +352,17 @@ int getnode(const vec3 &p)
   return nnodes;
 }
 
-bool addtriangle(const ivec4 &t)
+bool addtriangle(const ivec4 &t, int &index)
 {
   int ntriangles = regions.size();
   for (int i = 0; i < ntriangles; i++) {
-    if (regions[i] == t) return false;
+    if (regions[i] == t) {
+      index = i;
+      return false;
+    }
   }
   regions.push_back(t);
+  index = ntriangles;
   return true;
 }
 
@@ -310,6 +383,34 @@ float eval(const vec3 &p, const vec3 &q, const vec3 &r, const vec3 &s)
   return res;
 }
 
+vec3 ip,iq,ir;
+
+// With 2,3,5 basic symmetry:
+//./poly 2 5/2 5
+//./poly 2 3 5/2
+//./poly 2 3 5/3
+//./poly 2 3/2 5/2
+
+void makeico(ivec3 iargs)
+{
+  double A,B,C,a,b,c;
+  A = pi/iargs[0];
+  B = pi/iargs[1];
+  C = pi/iargs[2];
+  cosine(A,B,C,a,b,c);
+  triangle1(a,b,c,ip,iq,ir);
+}
+
+vec3 zrot(vec3 p, float theta)
+{
+  return vec3(cos(theta)*p.x + sin(theta)*p.y,
+              -sin(theta)*p.x + cos(theta)*p.y,
+              p.z);
+}
+
+int zrotarg = 0;
+double zrottot = 0;
+
 void makeschwarz(int args[6])
 {
   double A,B,C,a,b,c;
@@ -319,6 +420,13 @@ void makeschwarz(int args[6])
   C = pi*args[5]/args[4];
   cosine(A,B,C,a,b,c);
   triangle1(a,b,c,p0,q0,r0);
+  if (zrotarg != 0) {
+    float theta = pi/zrotarg;
+    p0 = zrot(p0,theta);
+    q0 = zrot(q0,theta);
+    r0 = zrot(r0,theta);
+    zrottot -= theta;
+  }
   snuba = vec3(1,1,1);
   // Compute snub coordinates
   find(snuba[0],snuba[1],snuba[2],0.1, 60,
@@ -333,28 +441,39 @@ void makeschwarz(int args[6])
     fprintf(stderr,"Snubification failure: %g %g %g %g\n", snuba[0], snuba[1], snuba[2], res);
   }
 
-  list<ivec4> qq;
+  struct Entry {
+    Entry(ivec4 &t, int i) : triangle(t), index(i) {}
+    ivec4 triangle;
+    int index;
+  };
+  list<Entry> qq;
   getnode(p0);
   getnode(q0);
   getnode(r0);
   ivec4 t0(0,1,2,1);
-  qq.push_back(t0);
-  addtriangle(t0);
-  while (!qq.empty()) {
-    ivec4 t = qq.front();
-    qq.pop_front();
+  int index;
+  addtriangle(t0,index);
+  assert(index == 0);
+  qq.push_back(Entry(t0,index));
+  for ( ; !qq.empty(); qq.pop_front()) {
+    Entry &entry = qq.front();
+    ivec4 &t = entry.triangle;
     vec3 p = points[t[0]];
     vec3 q = points[t[1]];
     vec3 r = points[t[2]];
+    // We could compute p1,q1 and r1 just with
+    // barycentric coordinates.
     int p1 = getnode(reflect(q,r,p));
     int q1 = getnode(reflect(r,p,q));
     int r1 = getnode(reflect(p,q,r));
     ivec4 t1(p1,t[1],t[2],-t[3]);
     ivec4 t2(t[0],q1,t[2],-t[3]);
     ivec4 t3(t[0],t[1],r1,-t[3]);
-    if (addtriangle(t1)) qq.push_back(t1);
-    if (addtriangle(t2)) qq.push_back(t2);
-    if (addtriangle(t3)) qq.push_back(t3);
+    int a1,a2,a3;
+    if (addtriangle(t1,a1)) qq.push_back(Entry(t1,a1));
+    if (addtriangle(t2,a2)) qq.push_back(Entry(t2,a2));
+    if (addtriangle(t3,a3)) qq.push_back(Entry(t3,a3));
+    adjacent[entry.index] = ivec3(a1,a2,a3);
   }
 }
 
@@ -363,10 +482,20 @@ vec4 invert(float r2, const vec3 &p)
   return vec4(p*r2,dot(p,p));
 }
 
+void unhom(vec4 &v)
+{
+  v[0] /= v[3];
+  v[1] /= v[3];
+  v[2] /= v[3];
+  v[3] = 1;
+}
+
 void drawregion(const int r) {
   ivec4 &f = regions[r];
+#if 0
   vec3 n = normalize(regionpoints[r]);
   setNormal(n);
+#endif
 
   vector <vec4> plist;
   for (int i = 0; i < 3; i++) {
@@ -374,13 +503,29 @@ void drawregion(const int r) {
   }
   //if (doclamp) clamp(plist);
   //setColour(mist);
+  float fact = 1;
   for (int i = 0; i < 3; i++) {
+    vec4 centre = invert(midsphere2,fact*regionpoints[r]);
+    //vec4 centre = vec4(regionpoints[r],fact);
+    int p1,p2;
     if (f.w > 0) {
-      setColour(facecolours[i]);
-      drawvertex(plist[i]);
+      p1 = i; p2 = (i+1)%3;
     } else {
-      setColour(facecolours[2-i]);
-      drawvertex(plist[2-i]);
+      p2 = 2-i; p1 = (2-i+1)%3;
+    }
+    unhom(plist[0]);
+    unhom(plist[1]);
+    unhom(plist[2]);
+    unhom(centre);
+    vec3 norm = cross(vec3(centre-plist[p2]),vec3(plist[p1]-centre));
+    if (length(norm) > eps) {
+      setNormal(normalize(norm));
+      setColour(white);
+      drawvertex(centre);
+      setColour(facecolours[p1]);
+      drawvertex(plist[p1]);
+      setColour(facecolours[p2]);
+      drawvertex(plist[p2]);
     }
   }
 }
@@ -392,10 +537,13 @@ void setsnubface(int i)
     triangle[j] = regionpoints[adjacent[i][2-j]];
   }
   if (regions[i][3] > 0) std::swap(triangle[1],triangle[2]);
-  snubsphere2 = square(length(triangle[0]+triangle[1])/2);
+  snubsphere2 = mid3(square(length(triangle[0]+triangle[1])/2),
+                     square(length(triangle[1]+triangle[2])/2),
+                     square(length(triangle[2]+triangle[0])/2));
   vec3 norm1 = cross(triangle[0]-triangle[1],triangle[1]-triangle[2]);
   if (length(norm1) <= eps) {
     snubcentres[i] = vec3(0,0,0);
+    //snubcentres[i] = triangle[1];
     return;
   }
   vec3 norm = normalize(norm1);
@@ -532,10 +680,13 @@ void drawDual()
         for (int j = 0; j < N; j++) {
           // This should be reciprocation relative to the edge centre
           // ie. the maximum of dot(s,p[i]) - set up in initialization.
-          // |r]|kr] = k|r||r| = mm
+          // |r||kr| = k|r||r| = mm
           int v = regions[i][j];
           float len = facecentres[j][v];
           plist.push_back(vec4(midsphere2*points[v],len));
+        }
+        if (regions[i][3] < 0) {
+          std::swap(plist[1],plist[2]);
         }
         //if (doclamp) clamp(plist);
         vec3 norm = normalize(regionpoints[i]);
@@ -556,7 +707,7 @@ void drawDual()
       }
     }
   } else {
-    int snubface = -1;
+    int snubface = 1;
     for (int i = 0; i < (int)regions.size(); i++) {
       if (regions[i][3] == snubface) {
         vector<vec4> plist;
@@ -567,7 +718,7 @@ void drawDual()
           if (length(tmp) > eps) {
             plist.push_back(invert(snubsphere2,tmp));
           } else {
-            assert(0);
+            //assert(0);
           }
         }
         int N = plist.size();
@@ -593,10 +744,9 @@ void drawDual()
 
 void drawMain()
 {
-  int snubface = 1;
+  int snubface = -1;
   for (int i = 0; i < 3; i++) {
     if (!omit[i]) {
-      setColour(facecolours[i%nfacecolours]);
       for (auto &j : facemap[i]) {
         if (snubify) {
           drawpointface(i,j.first,j.second,snubface);
@@ -608,7 +758,7 @@ void drawMain()
     }
   }
   if (snubify && !omit[3]) {
-    setColour(facecolours[3%nfacecolours]);
+    if (facecolour) setColour(facecolours[3%nfacecolours]);
     for (int i = 0; i < (int)regions.size(); i++) {
       if (regions[i][3] == snubface) {
         drawsnubface(i);
@@ -624,6 +774,11 @@ void drawMain()
 // Drawing stuff
 
 int args[6];
+ivec3 iargs;
+bool docompound = false;
+string trans;
+int dozrot = 0;
+bool rotonly = false;
 
 Interpolator<vec3> interpolator;
 bool pause = true;
@@ -676,39 +831,205 @@ void setColour(const vec4 &colour)
   glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, p);
 }
 
-void setNormal(const vec3 &norm)
+vec3 P(vec3 p)
 {
-  if (dolog) printf("normal %g %g %g\n", norm[0], norm[1], norm[2]);
-  glNormal3fv(glm::value_ptr(norm));
+  return reflect(iq,ir,p);
 }
 
-void drawvertex(const vec4 &p)
+vec3 Q(vec3 p)
 {
+  return reflect(ir,ip,p);
+}
+
+vec3 R(vec3 p)
+{
+  return reflect(ip,iq,p);
+}
+
+vec3 apply(const string &s, vec3 p)
+{
+  for (int i = 0; i < (int)s.length(); i++) {
+    if (s[i] == 'P') p = P(p);
+    else if (s[i] == 'Q') p = Q(p);
+    else if (s[i] == 'R') p = R(p);
+  }
+  return p;
+}
+
+void setNormal(const vec3 &norm)
+{
+  vec3 n = apply(trans,norm);
+  if (dolog) printf("normal %g %g %g\n", norm[0], norm[1], norm[2]);
+  glNormal3fv(glm::value_ptr(n));
+}
+
+void drawvertex(vec4 p)
+{
+#if 1
+  drawvertex(vec3(p[0]/p[3],p[1]/p[3],p[2]/p[3]));
+#else
   if (p[3] < 0) {
     if (dolog) printf("vertex %g %g %g %g\n", -p[0], -p[1], -p[2], -p[3]);
-    glVertex4f(-size*p[0],-size*p[1],-size*p[2],-p[3]);
+    glVertex4f(-size*p[0],-size*p[1],-size*p[2],p[3]);
   } else {
     if (dolog) printf("vertex %g %g %g %g\n", p[0], p[1], p[2], p[3]);
     glVertex4f(size*p[0],size*p[1],size*p[2],p[3]);
   }
+#endif
 }
 
-void drawvertex(const vec3 &p)
+void drawvertex(vec3 p)
+{
+  p = apply(trans,p);
+#if 0
+  int type = 0;
+  if (type == 0){
+    // 5-fold rotational iso symmetry
+    // ie. 2 3 3 + 2 3 5 (plus 45° zrot) => compound of 5 tetrahedra
+    switch (compound) {
+    case 0:
+      break;
+    case 1:
+      p = Q(P(p));
+      break;
+    case 2:
+      p = P(R(p));
+      break;
+    case 3:
+      p = Q(P(Q(P(p))));
+      break;
+    case 4:
+      p = R(Q(P(R(p))));
+      break;
+    }
+  } else if (type == 1) {
+    // 3 2 5, 10-fold, eg. hex prism, 3 2 2
+    switch (compound) {
+    case 0:
+      break;
+    case 1:
+      p = P(p);
+      break;
+    case 2:
+      p = Q(P(p));
+      break;
+    case 3:
+      p = P(Q(P(p)));
+      break;
+    case 4:
+      p = Q(P(Q(P(p))));
+      break;
+    case 5:
+      p = R(Q(P(p)));
+      break;
+    case 6:
+      p = P(R(Q(P(p))));
+      break;
+    case 7:
+      p = Q(P(R(Q(P(p)))));
+      break;
+    case 8:
+      p = P(Q(P(R(Q(P(p))))));
+      break;
+    case 9:
+      p = Q(P(Q(P(R(Q(P(p)))))));
+      break;
+    case 10:
+      p = P(Q(P(Q(P(R(Q(P(p))))))));
+      break;
+    case 11:
+      p = Q(P(Q(P(Q(P(R(Q(P(p)))))))));
+      break;
+    case 12:
+      p = P(Q(P(Q(P(Q(P(R(Q(P(p))))))))));
+      break;
+    case 13:
+      p = Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))));
+      break;
+    case 14:
+      p = P(Q(P(Q(P(Q(P(Q(P(R(Q(P(p))))))))))));
+      break;
+    case 15:
+      p = R(Q(P(Q(P(Q(P(Q(P(R(Q(P(p))))))))))));
+      break;
+    case 16:
+      p = R(P(Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))))));
+      break;
+    case 17:
+      p = Q(R(Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))))));
+      break;
+    case 18:
+      p = Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))));
+      break;
+    case 19:
+      p = Q(P(Q(R(Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))))))));
+      break;
+    }
+  } else if (type == 2) {
+    // Just right for 6 tetrahedra (with 2 3 3 for each)
+    switch (compound) {
+    case 0:
+      break;
+    case 1:
+      p = P(p);
+      break;
+    case 2:
+      p = Q(p);
+      break;
+    case 3:
+      p = Q(P(p));
+      break;
+    case 4:
+      p = R(P(p));
+      break;
+    case 5:
+      p = P(Q(p));
+      break;
+    }
+  } else {
+    // 5-fold iso symmetry
+    // ie. 2 3 5
+    switch (compound) {
+    case 0:
+      break;
+    case 1:
+      p = P(p);
+      break;
+    case 2:
+      p = R(P(p));
+      break;
+    case 3:
+      p = Q(P(p));
+      break;
+    case 4:
+      p = P(Q(P(p)));
+      break;
+    }
+  }
+#endif
+  if (dolog) printf("vertex %g %g %g %g\n", p[0], p[1], p[2], 1.0f);
+  glVertex4f(size*p[0],size*p[1],size*p[2],1);
+}
+
+#if 0
+void drawvertex(vec3 p)
 {
   drawvertex(vec4(p,1));
 }
+#endif
 
 void drawone()
 {
   glBegin(GL_TRIANGLES);
-  if (dual) {
-    //drawMain();
-    drawDual();
-  } else {
+  if (drawtype <= 1) {
     drawMain();
+  }
+  if (drawtype >= 1) {
+    drawDual();
   }
   glEnd();
 }
+
 void init(void)
 {
   //glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
@@ -727,7 +1048,7 @@ void init(void)
 
   glEnable (GL_LIGHTING);
 
-#if 1
+#if 0
   glEnable (GL_BLEND); 
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #endif
@@ -750,16 +1071,34 @@ void resize (int p_width, int p_height)
 float ttinc = 0.0015;
 vec3 abc;
 
+bool eqset(const vector<vec3> &s1, const vector<vec3> &s2)
+{
+  //printf("eqset\n");
+  for (auto p: s1) {
+    bool found = false;
+    for (auto q: s2) {
+      if (fabs(p.x - q.x) < eps &&
+          fabs(p.y - q.y) < eps &&
+          fabs(p.z - q.z) < eps) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
+  return true;
+}
+
 void display(void)
 {
   if (dolog) {
     printf ("start\n");
     printf (";; %d/%d %d/%d %d/%d\n", 
             args[0],args[1],args[2],args[3],args[4],args[5]);
-    printf (";; %g %g %g%s%s\n",
+    printf (";; %g %g %g%s: %d\n",
             abc[0],abc[1],abc[2],
             snubify?" snub":"",
-            dual?" dual":"");
+            drawtype);
   }
   rotx += rotxinc;
   roty += rotyinc;
@@ -768,6 +1107,13 @@ void display(void)
   if (rotx >= 360) rotx -= 360;
   if (roty >= 360) roty -= 360;
   if (rotz >= 360) rotz -= 360;
+
+  if (dozrot) {
+    zrottot += 0.001;
+    ip = zrot(ip,0.001);
+    iq = zrot(iq,0.001);
+    ir = zrot(ir,0.001);
+  }
 
   glClearColor(0, 0, 0.2, 0.0);
   glViewport(0,0,screen_width,screen_height);
@@ -796,7 +1142,50 @@ void display(void)
     needparams = true;
     tt += ttinc;
   }
-  drawone();
+  list<string> qq;
+  list<vector<vec3>> seen;
+  qq.push_back("");
+  int compound = 0;
+  while (!qq.empty()) {
+    trans = qq.front();
+    qq.pop_front();
+    vector<vec3> newpoints;
+    int rsize = regions.size();
+    for (int i = 0; i < rsize; i++) {
+      if (!snubify || regions[i][3] == 1) {
+        newpoints.push_back(apply(trans,regionpoints[i]));
+      }
+    }
+    bool done = false;
+    for (auto s: seen) {
+      if (eqset(newpoints,s)) {
+        done = true;
+        break;
+      }
+    }
+    if (!done) {
+      seen.push_back(newpoints);
+      if (rotonly) {
+        qq.push_back(trans+"PQ");
+        qq.push_back(trans+"QR");
+        qq.push_back(trans+"RP");
+      } else {
+        qq.push_back(trans+"P");
+        qq.push_back(trans+"Q");
+        qq.push_back(trans+"R");
+      }
+      if (!facecolour) setColour(facecolours[compound%nfacecolours]);
+      //printf("Drawing %d %s\n", compound, trans.c_str());
+      drawone();
+      compound++;
+      if (!docompound) break;
+    }
+  }
+  static int lastcompound = -1;
+  if (compound != lastcompound){
+    lastcompound = compound;
+    printf("Compound: %d\n", compound);
+  }
   if (dolog) {
     printf ("end\n");
     dolog = false;
@@ -809,6 +1198,19 @@ void display(void)
 void keyboard(unsigned char p_key, int p_x, int p_y)
 {  
   switch (p_key) {
+  case 'f':
+    facecolour = !facecolour;
+    break;
+  case 'z':
+    dozrot = !dozrot;
+    if (!dozrot) printf("zrot = %f\n", pi/zrottot);
+    break;
+  case 'x':
+    rotonly = !rotonly;
+    break;
+  case 'c':
+    docompound = !docompound;
+    break;
   case 'l':
     dolog = true;
     break;
@@ -860,7 +1262,7 @@ void keyboard(unsigned char p_key, int p_x, int p_y)
     glPolygonMode (GL_FRONT_AND_BACK, filling?GL_FILL:GL_LINE);
     break;
   case 'd':
-    dual = !dual;
+    drawtype = (drawtype+1)%3;
     break;
   case 'e':
     explode += 0.1;
@@ -906,14 +1308,39 @@ void keyboard_s (int p_key, int p_x, int py)
 
 int main(int argc, char **argv)
 {
+  //char *progname = argv[0];
+  argc--; argv++;
+  while (true) {
+    if (strcmp(argv[0],"--zrot") == 0) {
+      argc--; argv++;
+      zrotarg = atoi(argv[0]);
+      argc--; argv++;
+    } else {
+      break;
+    }
+  }
   for (int i = 0; i<3; i++) {
     args[2*i] = 1;
     args[2*i+1] = 1;
-    int d = sscanf(argv[1+i],"%d/%d",&args[2*i],&args[2*i+1]);
+    int d = sscanf(argv[i],"%d/%d",&args[2*i],&args[2*i+1]);
     assert(d == 1 || d == 2);
   }
   makeschwarz(args);
+  if (argc > 3) {
+    iargs[0] = atoi(argv[3]);
+    iargs[1] = atoi(argv[4]);
+    iargs[2] = atoi(argv[5]);
+    makeico(iargs);
+    docompound = true;
+#if 0
+    float theta = pi/4;
+    ip = zrot(ip,theta);
+    iq = zrot(iq,theta);
+    ir = zrot(ir,theta);
+#endif
+  }
   // Make triangle adjacency map
+#if 0
   {
     int n = regions.size();
     adjacent.resize(n);
@@ -938,6 +1365,7 @@ int main(int argc, char **argv)
       assert(total == 3);
     }
   }
+#endif
   {
     int npoints = points.size();
     for (int i = 0; i < npoints; i++) {
@@ -947,9 +1375,15 @@ int main(int argc, char **argv)
     }
   }
 #if 0
-  interpolator.add(vec3(-0.5,1,1));
-  interpolator.add(vec3(1,-0.5,1));
-  interpolator.add(vec3(1,1,-0.5));
+  interpolator.add(vec3(1,-100,1));
+  interpolator.add(vec3(1,-10,1));
+  interpolator.add(vec3(1,-1,1));
+  interpolator.add(vec3(1,0,1));
+  interpolator.add(vec3(1,1,1));
+  interpolator.add(vec3(0,1,1));
+  interpolator.add(vec3(-1,1,1));
+  interpolator.add(vec3(-10,1,1));
+  interpolator.add(vec3(-100,1,1));
 #elif 0
   interpolator.add(vec3(1,0,0));
   interpolator.add(vec3(1,1,1));
@@ -970,7 +1404,6 @@ int main(int argc, char **argv)
   interpolator.add(vec3(-1,1,1));
   interpolator.add(vec3(1,-1,1));
 #else
-  interpolator.add(vec3(1,1,0));
   interpolator.add(vec3(1,1,1));
   interpolator.add(vec3(1,0,0));
   interpolator.add(vec3(1,1,0));
@@ -999,6 +1432,5 @@ int main(int argc, char **argv)
   glutSpecialFunc (keyboard_s);
   init();
   glutMainLoop();
-
   return(0);    
 }

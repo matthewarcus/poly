@@ -13,86 +13,6 @@
 
 #include "utils.h"
 
-// The classics
-// ./poly 2 3 3
-// ./poly 2 3 4
-// ./poly 2 3 5
-// Nice snub forms
-// ./poly 3 5/2 5/3  // All 4 colours in snub
-// ./poly 5/2 3/2 3/2 // Excellent dual animation
-// ./poly 2 3/2 5/3 // Strange incomplete dual momentary form.
-// ./poly 3 2 5/3    // Nice duals
-// ./poly 2 2 37/19  // Nice in wireframe
-// ./poly 3/2 3/2 3/2 // "partially degenerate" dual - concentric faces in main
-
-// 3 5/3 (3/2 5/2) | is interesting intersection polyhedron
-
-// Check
-//./poly 5 2 3/2
-//Snubification failure: 1.05876 1.80118 8.79375e-05 1.1451e-05
-
-// Compounds
-
-// UC01: 2 3 3 2 3 3: 6 tetrahedra, rotational freedom
-// UC02: 2 3 3 4 2 3: 12 tetrahedra, rotational freedom
-// UC03: ditto, zrot = 0
-// UC04: ditto, zrot = pi/4
-// UC05: 2 3 3 2 3 5, zrot = pi/4, ico rotations
-// UC06: ditto, full ico group
-// UC07-08: 4 2 2 4 2 3, zrot
-// UC09: 4 2 3 2 3 5
-// UC10-11: 3 2 2 3 3 2 + snub + zrot & rot only or not
-// UC12:  --zrot -6 3 2 2 3 2 4
-// UC13-16: 3 2 4 3 2 5, or 3 2 3 3 2 5, zrot = various
-// UC17: 4 2 3 2 3 5
-// UC18: --zrot 4 2 3 3/2 2 3 5 + I symmetry
-// UC19: 3 2 3/2 3 2 5 with custom zrot
-// UC20-21: 5/2 2 2 10 2 2 + zrot
-// UC22-23: 3 2 2 12 2 2 + zrot + snub
-// UC24-25: 5/2 2 2 10 2 2 + zrot + snub
-// UC26-27: --zrot -10 5 2 2 5 3 2 with snub (or variable zrot)
-// UC28-29: --zrot 10 5/3 2 2 5 3 2 with snub
-// UC30-32: --zrot -6 3 2 2 3 4 2
-// UC32-33: 3 2 2 3 2 5 with zrot = pi/6 & rot only or not
-// UC34-35: 5 2 2 5 3 2 with zrot = pi/10 & rot only or not
-// UC36-37: 5/2 2 2 5 3 2 with zrot = pi/10 & rot only or not (need pentacle form).
-// UC38: --zrot 6 6 2 2 3 2 4
-// UC39: --zrot 6 6 2 2 3 2 5
-// UC40: --zrot 10 10 2 2 5 2 3
-// UC41: --zrot 10 10/3 2 2 5 2 3
-// UC42-43: 4 2 2 4 3 2
-// UC44-45: 5/2 2 2 5 3 2 zrot something...
-// UC46: --zrot 4 2 3 5 4 3 2
-// UC46: 2 3 3 2 3 3 as snub
-// UC47: 2 5 3 2 3 5
-// UC48: --zrot 4 2 5 5/2 4 3 2
-// UC49: 2 5/2 5 2 3 5
-// UC50: --zrot 4 2 5 5/2 4 3 2
-// UC51: 2 5/2 5 2 3 5
-// UC52: 2 3/2 3/2 2 3/2 3/2  (as snub)
-// UC53: 2 3 5/2 2 3 5
-// UC54: --zrot 4 2 3 3 4 2 3
-// UC55-56: as UC05-06
-// UC57: 4 2 3 2 3 5
-// UC58: 4/3 2 3 2 3 5
-// UC59: 4 2 3 2 3 5
-// UC60: 4/3 4 3 2 3 5
-// UC61: ./poly --zrot 8 3 3 3/2 3 2 5 (approx) ???
-// UC62: 4 2 3 2 3 5
-// UC63: 4 2 3/2 2 3 5 (omit blue face 3)
-// UC64: 4 4 3/2 2 3 5
-// UC65: 4 4/3 3 2 3 5
-// UC66: --zrot 4 4/3 3/2 2 2 3 5 (omit green face 2)
-// UC67: 4 2 3/2 2 3 5
-// UC68: 2 3 4 2 3 4
-// UC69: 2 3 5 2 3 5
-// UC70: 2 5/2 3 2 3 5
-// UC71: 2 5/3 3 2 3 5
-// UC72: 2 5/3 3/2 2 3 5
-// UC73: 2 5 5/2 2 3 5
-// UC74: 2 5 5/3 2 3 5
-// UC75: 3 5 5/3 3 2 5
-
 using std::max;
 using std::vector;
 using std::list;
@@ -126,16 +46,14 @@ bool snubify = false;
 
 int style = 1;
 int nstyles = 2;
-bool doclamp = false;
-
 bool facecolour = false;
+bool normalx = true;
 
 // Trilinears
 vec3 afact; // Use to translate between trilinear and barycentric coords
-vec3 snuba; // Ditto in snub mode - produces uniform snub at (1,1,1)
-vec3 dfact; // Perform dual transform on Schwarz triangle
-vec3 efact; // Perform dual transform on Schwarz triangle
+vec3 snuba; // Tri coords of the centre of a snub face
 
+// Sphere radius to perform inversion with
 float midsphere2;
 float snubsphere2;
 
@@ -145,8 +63,7 @@ bool needparams = true;
 
 // Constant data per Schwarz triangle
 std::vector<ivec4> regions;     // Fundamental regions in Wythoff construction
-//std::vector<ivec3> adjacent;    // Adjacency relation for regions
-std::map<int,ivec3> adjacent;    // Adjacency relation for regions
+std::map<int,ivec3> adjacent;   // Adjacency relation for regions
 std::vector<vec3> points;       // Vertex positions for regions
 
 // Construct the Wythoff faces here. Have 3 maps
@@ -161,16 +78,24 @@ std::map<int,std::vector<float>> facecentres;
 std::vector<vec3> snubcentres;
 
 // Colour and lighting
-vec4 *facecolours[] = { &red, &green, &blue, &yellow, &cyan, &white, &black, &purple, &orange, &pink };
-int nfacecolours = 9;
+vec4 *facecolours[] = { &red, &green, &blue, &yellow, &cyan, &white, &pink, &orange, &purple, &grey };
+int nfacecolours = 10;
 
 // Whether to display faces
 bool omit[4] = { false, false, false, false };
 float explode = 0;
 
-// Never normalize a short vector!
+bool approxeq(const vec3 &p, const vec3 &q)
+{
+  return 
+    fabs(p.x - q.x) < eps &&
+    fabs(p.y - q.y) < eps &&
+    fabs(p.z - q.z) < eps;
+}
+
 vec3 normalize(vec3 p)
 {
+  // Never normalize a short vector!
   assert(length(p) > eps);
   return glm::normalize(p);
 }
@@ -184,8 +109,10 @@ vec3 tri2bary(const vec3 &p, const vec3 &q, const vec3 &r,
    vec3 nr = normalize(cross(p,q));
    vec3 t;
    if (snubify) {
+     // TBD: This can assert...
      t = normalize(p*tri[0]*snuba[0] + q*tri[1]*snuba[1] + r*tri[2]*snuba[2]);
    } else {
+     // nq x nr = norm(r x p) x norm(p x q) = kp
      t = normalize(tri[0]*cross(nq,nr) + tri[1]*cross(nr,np) + tri[2]*cross(np,nq));
    }
    float P = dot(t,np)/dot(p,np);
@@ -276,7 +203,7 @@ void makefaces(int v, int p, int q, int r)
 // facelist: vertex -> face list ;; The regions incident at that vertex
 
 // Compute the distance of each face from origin
-// For {2n} this is just |p[0]+p[n]|/2
+// Simplify: for {2n} this is just |p[0]+p[n]|/2
 void setpointface(int k, int v, std::vector<int> &facelist)
 {
   assert(!facelist.empty());
@@ -310,24 +237,27 @@ void drawpointface(int k, int v, std::vector<int> &facelist, int snubface)
     }
   }
   int npoints = plist.size();
-  float fact = 1.0f;
-  vec3 centre = fact*facecentres[k][v]*points[v];
-  
+  vec3 centre = facecentres[k][v]*points[v];
   if (npoints <= 2) return;
-  // Faces are always square on so the centre is the normal
-  //setNormal(points[v]*sgn(facecentres[k][v]));
-  setNormal(points[v]*sgn(facecentres[k][v]));
   vec3 offset = explode*centre;
   if (facecolour) setColour(facecolours[k%nfacecolours]);
-  for (int i = 0; i < npoints; i++) {
-    if (npoints == 3) {
-      drawvertex(plist[i]+offset);
-    } else {
+  if (npoints == 3) {
+    int p1 = 1;
+    int p2 = 2;
+    vec3 norm = cross(vec3(plist[p1]-plist[0]),vec3(plist[p2]-plist[p1]));
+    if (length(norm) > eps) {
+      setNormal(normalize(norm));
+      drawvertex(plist[0]+offset);
+      drawvertex(plist[p1]+offset);
+      drawvertex(plist[p2]+offset);
+    }
+  } else {
+    for (int i = 0; i < npoints; i++) {
       int p1 = i;
       int p2 = (i+1)%npoints;
-      vec3 norm = cross(vec3(centre-plist[p2]),vec3(plist[p1]-centre));
+      vec3 norm = cross(vec3(plist[p1]-centre),vec3(plist[p2]-plist[p1]));
       if (length(norm) > eps) {
-        //setNormal(normalize(norm));
+        setNormal(normalize(norm));
         drawvertex(centre+offset);
         drawvertex(plist[p1]+offset);
         drawvertex(plist[p2]+offset);
@@ -479,44 +409,22 @@ void makeschwarz(int args[6])
 
 vec4 invert(float r2, const vec3 &p)
 {
-  return vec4(p*r2,dot(p,p));
+  //return vec4(p*r2,dot(p,p));
+  return vec4(p*r2/dot(p,p),1);
 }
 
-void unhom(vec4 &v)
-{
-  v[0] /= v[3];
-  v[1] /= v[3];
-  v[2] /= v[3];
-  v[3] = 1;
-}
-
-void drawregion(const int r) {
+void drawregion1(int r) {
   ivec4 &f = regions[r];
-#if 0
-  vec3 n = normalize(regionpoints[r]);
-  setNormal(n);
-#endif
-
   vector <vec4> plist;
   for (int i = 0; i < 3; i++) {
-    plist.push_back(vec4(points[f[i]]*dfact[i],efact[i]));
+    int v = regions[r][i];
+    float len = facecentres[i][v];
+    plist.push_back(vec4(midsphere2*points[v]/len,1));
   }
-  //if (doclamp) clamp(plist);
-  //setColour(mist);
-  float fact = 1;
   for (int i = 0; i < 3; i++) {
-    vec4 centre = invert(midsphere2,fact*regionpoints[r]);
-    //vec4 centre = vec4(regionpoints[r],fact);
-    int p1,p2;
-    if (f.w > 0) {
-      p1 = i; p2 = (i+1)%3;
-    } else {
-      p2 = 2-i; p1 = (2-i+1)%3;
-    }
-    unhom(plist[0]);
-    unhom(plist[1]);
-    unhom(plist[2]);
-    unhom(centre);
+    vec4 centre = invert(midsphere2,regionpoints[r]);
+    int p1 = i, p2 = (i+1)%3;
+    if (f.w < 0) std::swap(p1,p2);
     vec3 norm = cross(vec3(centre-plist[p2]),vec3(plist[p1]-centre));
     if (length(norm) > eps) {
       setNormal(normalize(norm));
@@ -529,6 +437,41 @@ void drawregion(const int r) {
     }
   }
 }
+
+void drawregion2(int i)
+{
+  vector<vec4> plist;
+  int N = 3;
+  for (int j = 0; j < N; j++) {
+    // This should be reciprocation relative to the edge centre
+    // ie. the maximum of dot(s,p[i]) - set up in initialization.
+    // |r||kr| = k|r||r| = mm
+    int v = regions[i][j];
+    float len = facecentres[j][v];
+    // Want homogeneous coords here for "stellation to infinity".
+    // But need to be careful about computing normals
+    if (fabs(len) < eps) len = 0;
+    plist.push_back(vec4(midsphere2*points[v]/len,1.0));
+  }
+  if (regions[i][3] < 0) {
+    std::swap(plist[1],plist[2]);
+  }
+  vec3 norm = cross(vec3(plist[1]-plist[0]),vec3(plist[2]-plist[1]));
+  if (length(norm) >= eps) {
+    int colour;
+    if (regions[i][3] < 0) {
+      colour = 3;
+    } else {
+      colour = 4;
+    }
+    setColour(facecolours[colour%nfacecolours]);
+    setNormal(normalize(norm));
+    for (int k = 0; k < N; k++) {
+      drawvertex(plist[k]);
+    }
+  }
+}
+
 
 void setsnubface(int i)
 {
@@ -543,20 +486,11 @@ void setsnubface(int i)
   vec3 norm1 = cross(triangle[0]-triangle[1],triangle[1]-triangle[2]);
   if (length(norm1) <= eps) {
     snubcentres[i] = vec3(0,0,0);
-    //snubcentres[i] = triangle[1];
-    return;
+  } else {
+    vec3 norm = normalize(norm1);
+    float a = dot(triangle[0],norm); // Can probably simplify this
+    snubcentres[i] = a*norm;
   }
-  vec3 norm = normalize(norm1);
-  float a = dot(triangle[0],norm); // Can probably simplify this
-  snubcentres[i] = a*norm;
-#if 0
-  cout << triangle[0] << "\n";
-  cout << triangle[1] << "\n";
-  cout << triangle[2] << "\n";
-  cout << norm1 << "\n";
-  cout << a << "\n";
-  cout << snubsphere2 << snubcentres[i] << "\n";
-#endif
 }
 
 void drawsnubface(int i)
@@ -570,23 +504,16 @@ void drawsnubface(int i)
   centre /= 3.0f;
   if (regions[i][3] > 0) std::swap(triangle[1],triangle[2]);
 
-  vec3 norm = cross(triangle[0]-triangle[1],triangle[1]-triangle[2]);
-  if (length(norm) < eps) return;
-  norm = normalize(norm);
-  // Orientation of snub faces is uncertain, I guess some faces can be
-  // retrograde.
-  if (dot(norm,centre) < 0) norm = -norm;
-#if 0
-  vec3 norm1 = normalize(centre);
-  assert(fabs(dot(norm,norm1)-1) < eps);
-  assert(fabs(length(triangle[0]-triangle[1]) -
-              length(triangle[1]-triangle[2])) < eps);
-#endif
-  setNormal(norm);
   for (int j = 0; j < 3; j++) {
+    int p1 = j;
+    int p2 = (j+1)%3;
+    vec3 norm = cross(triangle[p1]-centre,triangle[p2]-centre);
+    if (length(norm) < eps) return;
+    norm = normalize(norm);
+    setNormal(norm);
     drawvertex(centre+explode*centre);
-    drawvertex(triangle[j]+explode*centre);
-    drawvertex(triangle[(j+1)%3]+explode*centre);
+    drawvertex(triangle[p1]+explode*centre);
+    drawvertex(triangle[p2]+explode*centre);
   }
 }
 
@@ -631,79 +558,17 @@ void doparams(const vec3 &abc)
   midsphere2 = square(min3(length(s+reflect(p,q,s)),
                            length(s+reflect(q,r,s)),
                            length(s+reflect(r,p,s)))/2);
-  // Want (kp-s).s  = 0 
-  // k(s.p) = s.s ie. k = (s.s)/(p.s)
-  // Also scale by mm*|p| - why?
-  dfact[0] = midsphere2*length(p)*length(s);
-  dfact[1] = midsphere2*length(q)*length(s);
-  dfact[2] = midsphere2*length(r)*length(s);
-  efact[0] = dot(s,p);
-  efact[1] = dot(s,q);
-  efact[2] = dot(s,r);
-
-  if (efact[0] < 0) { dfact[0] *= -1; efact[0] *= -1; }
-  if (efact[1] < 0) { dfact[1] *= -1; efact[1] *= -1; }
-  if (efact[2] < 0) { dfact[2] *= -1; efact[2] *= -1; }
-  //printf("%g\n", midsphere2);
   drawinit();
-}
-
-vec4 hmul(float k, vec4 p)
-{
-  return vec4(k*p.x, k*p.y, k*p.z, p.w);
-}
-
-vec4 hadd(vec4 p, vec4 q)
-{
-  if (p.w > q.w) std::swap(p,q);
-  q *= p.w/q.w;
-  p[0] += q[0];
-  p[1] += q[1];
-  p[2] += q[2];
-  return p;
 }
 
 void drawDual()
 {
   if (!snubify) {
-    if (style == 0) {
-      for (int i = 0; i < (int)regions.size(); i++) {
-        drawregion(i);
-        //break;
-      }
-    } else {
-      for (int i = 0; i < (int)regions.size(); i++) {
-        setColour(facecolours[3%nfacecolours]);
-        vector<vec4> plist;
-        //float len = length(regionpoints[i]);
-        int N = 3;
-        for (int j = 0; j < N; j++) {
-          // This should be reciprocation relative to the edge centre
-          // ie. the maximum of dot(s,p[i]) - set up in initialization.
-          // |r||kr| = k|r||r| = mm
-          int v = regions[i][j];
-          float len = facecentres[j][v];
-          plist.push_back(vec4(midsphere2*points[v],len));
-        }
-        if (regions[i][3] < 0) {
-          std::swap(plist[1],plist[2]);
-        }
-        //if (doclamp) clamp(plist);
-        vec3 norm = normalize(regionpoints[i]);
-        setNormal(norm);
-        vec4 centre;
-        // This will work since all homogeneous coords have same w
-        for (int k = 0; k < N; k+=1) {
-          centre += plist[k];
-        }
-        centre /= N;
-        //cout << centre << "\n";
-        for (int k = 0; k < N; k++) {
-          //drawvertex(centre+explode*centre);
-          drawvertex(plist[k]/*+explode*centre*/);
-          //drawvertex(plist[(k+1)%N]+explode*centre);
-        }
-        //break;
+    for (int i = 0; i < (int)regions.size(); i++) {
+      if (style == 0) {
+        drawregion1(i);
+      } else {
+        drawregion2(i);
       }
     }
   } else {
@@ -712,31 +577,32 @@ void drawDual()
       if (regions[i][3] == snubface) {
         vector<vec4> plist;
         for (int j = 0; j < 3; j++) {
-          plist.push_back(vec4(snubsphere2*points[regions[i][j]],
-                               facecentres[j][regions[i][j]]));
+          int v = regions[i][j];
+          plist.push_back(vec4(snubsphere2*points[v]/facecentres[j][v],1));
           vec3 &tmp = snubcentres[adjacent[i][(j+2)%3]];
           if (length(tmp) > eps) {
             plist.push_back(invert(snubsphere2,tmp));
-          } else {
-            //assert(0);
           }
         }
         int N = plist.size();
-        //if (doclamp) clamp(plist);
-        vec3 norm = normalize(regionpoints[i]);
-        setNormal(norm);
         assert(length(regionpoints[i]) > eps);
         vec4 centre = invert(snubsphere2,regionpoints[i]);
-        vec4 offset = hmul(explode,centre);
+        vec4 offset = centre*explode;
+        setColour(facecolours[0]);
         for (int k = 0; k < N; k++) {
-          setColour(black); 
-          drawvertex(hadd(centre,offset));
-          setColour(facecolours[k%nfacecolours]);
-          drawvertex(hadd(plist[k],offset));
-          setColour(facecolours[((k+1)%N)%nfacecolours]);
-          drawvertex(hadd(plist[(k+1)%N],offset));
+          int p1 = k;
+          int p2 = (k+1)%N;
+          vec3 norm = cross(vec3(plist[p1]-centre),vec3(plist[p2]-plist[p1]));
+          if (length(norm) > eps) {
+            setNormal(normalize(norm));
+            setColour(black); 
+            drawvertex(centre+offset);
+            setColour(facecolours[p1%nfacecolours]);
+            drawvertex(plist[p1]+offset);
+            setColour(facecolours[p2%nfacecolours]);
+            drawvertex(plist[p2]+offset);
+          }
         }
-        //break;
       }
     }
   }
@@ -754,6 +620,7 @@ void drawMain()
         } else {
           drawpointface(i,j.first,j.second,0);
         }
+        //break;
       }
     }
   }
@@ -779,6 +646,8 @@ bool docompound = false;
 string trans;
 int dozrot = 0;
 bool rotonly = false;
+bool docull = false;
+bool doboth = true;
 
 Interpolator<vec3> interpolator;
 bool pause = true;
@@ -808,8 +677,8 @@ GLfloat light_diffuse[]= { diff, diff, diff, 0.0f };
 GLfloat light_specular[]= { spec, spec, spec, 0.0f };
 
 // Lights are at infinity
-GLfloat light_position1[]= { 10.0f, 10.0f, 10.0f, 0.0f };
-GLfloat light_position2[]= { -10.0f, 10.0f, 10.0f, 0.0f };
+GLfloat light_position1[]= { 100.0f, 100.0f, 100.0f, 0.0f };
+GLfloat light_position2[]= { -100.0f, 100.0f, 100.0f, 0.0f };
 
 //Materials settings
 GLfloat mat_specular[]= { 0, 0, 0, 0 };
@@ -865,148 +734,16 @@ void setNormal(const vec3 &norm)
 
 void drawvertex(vec4 p)
 {
-#if 1
-  drawvertex(vec3(p[0]/p[3],p[1]/p[3],p[2]/p[3]));
-#else
-  if (p[3] < 0) {
-    if (dolog) printf("vertex %g %g %g %g\n", -p[0], -p[1], -p[2], -p[3]);
-    glVertex4f(-size*p[0],-size*p[1],-size*p[2],p[3]);
-  } else {
-    if (dolog) printf("vertex %g %g %g %g\n", p[0], p[1], p[2], p[3]);
-    glVertex4f(size*p[0],size*p[1],size*p[2],p[3]);
-  }
-#endif
+  vec3 p0(p);
+  p0 = apply(trans,p0);
+  if (p[3] < 0) { p0 = -p0; p[3] = -p[3]; }
+  if (dolog) printf("vertex %g %g %g %g\n", p0[0], p0[1], p0[2], p[3]);
+  glVertex4f(size*p0[0],size*p0[1],size*p0[2],p[3]);
 }
 
 void drawvertex(vec3 p)
 {
   p = apply(trans,p);
-#if 0
-  int type = 0;
-  if (type == 0){
-    // 5-fold rotational iso symmetry
-    // ie. 2 3 3 + 2 3 5 (plus 45° zrot) => compound of 5 tetrahedra
-    switch (compound) {
-    case 0:
-      break;
-    case 1:
-      p = Q(P(p));
-      break;
-    case 2:
-      p = P(R(p));
-      break;
-    case 3:
-      p = Q(P(Q(P(p))));
-      break;
-    case 4:
-      p = R(Q(P(R(p))));
-      break;
-    }
-  } else if (type == 1) {
-    // 3 2 5, 10-fold, eg. hex prism, 3 2 2
-    switch (compound) {
-    case 0:
-      break;
-    case 1:
-      p = P(p);
-      break;
-    case 2:
-      p = Q(P(p));
-      break;
-    case 3:
-      p = P(Q(P(p)));
-      break;
-    case 4:
-      p = Q(P(Q(P(p))));
-      break;
-    case 5:
-      p = R(Q(P(p)));
-      break;
-    case 6:
-      p = P(R(Q(P(p))));
-      break;
-    case 7:
-      p = Q(P(R(Q(P(p)))));
-      break;
-    case 8:
-      p = P(Q(P(R(Q(P(p))))));
-      break;
-    case 9:
-      p = Q(P(Q(P(R(Q(P(p)))))));
-      break;
-    case 10:
-      p = P(Q(P(Q(P(R(Q(P(p))))))));
-      break;
-    case 11:
-      p = Q(P(Q(P(Q(P(R(Q(P(p)))))))));
-      break;
-    case 12:
-      p = P(Q(P(Q(P(Q(P(R(Q(P(p))))))))));
-      break;
-    case 13:
-      p = Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))));
-      break;
-    case 14:
-      p = P(Q(P(Q(P(Q(P(Q(P(R(Q(P(p))))))))))));
-      break;
-    case 15:
-      p = R(Q(P(Q(P(Q(P(Q(P(R(Q(P(p))))))))))));
-      break;
-    case 16:
-      p = R(P(Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))))));
-      break;
-    case 17:
-      p = Q(R(Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))))));
-      break;
-    case 18:
-      p = Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))));
-      break;
-    case 19:
-      p = Q(P(Q(R(Q(P(Q(P(Q(P(Q(P(R(Q(P(p)))))))))))))));
-      break;
-    }
-  } else if (type == 2) {
-    // Just right for 6 tetrahedra (with 2 3 3 for each)
-    switch (compound) {
-    case 0:
-      break;
-    case 1:
-      p = P(p);
-      break;
-    case 2:
-      p = Q(p);
-      break;
-    case 3:
-      p = Q(P(p));
-      break;
-    case 4:
-      p = R(P(p));
-      break;
-    case 5:
-      p = P(Q(p));
-      break;
-    }
-  } else {
-    // 5-fold iso symmetry
-    // ie. 2 3 5
-    switch (compound) {
-    case 0:
-      break;
-    case 1:
-      p = P(p);
-      break;
-    case 2:
-      p = R(P(p));
-      break;
-    case 3:
-      p = Q(P(p));
-      break;
-    case 4:
-      p = P(Q(P(p)));
-      break;
-    }
-  }
-#endif
   if (dolog) printf("vertex %g %g %g %g\n", p[0], p[1], p[2], 1.0f);
   glVertex4f(size*p[0],size*p[1],size*p[2],1);
 }
@@ -1032,8 +769,6 @@ void drawone()
 
 void init(void)
 {
-  //glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-
   glLightfv (GL_LIGHT1, GL_AMBIENT, light_ambient);
   glLightfv (GL_LIGHT1, GL_DIFFUSE, light_diffuse);
   glLightfv (GL_LIGHT1, GL_SPECULAR, light_specular);
@@ -1057,7 +792,6 @@ void init(void)
   glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
   glPolygonMode (GL_FRONT_AND_BACK, GL_FILL); // Polygon rasterization mode (polygon filled)
   glEnable(GL_DEPTH_TEST); // Enable the depth test (also called z buffer)
-  //glEnable(GL_CULL_FACE); // Enable the back face culling
 }
 
 void resize (int p_width, int p_height)
@@ -1071,15 +805,13 @@ void resize (int p_width, int p_height)
 float ttinc = 0.0015;
 vec3 abc;
 
+// These are "regionsets"
 bool eqset(const vector<vec3> &s1, const vector<vec3> &s2)
 {
-  //printf("eqset\n");
   for (auto p: s1) {
     bool found = false;
     for (auto q: s2) {
-      if (fabs(p.x - q.x) < eps &&
-          fabs(p.y - q.y) < eps &&
-          fabs(p.z - q.z) < eps) {
+      if (approxeq(p,q)) {
         found = true;
         break;
       }
@@ -1115,6 +847,12 @@ void display(void)
     ir = zrot(ir,0.001);
   }
 
+  if (docull) glEnable(GL_CULL_FACE); // Enable the back face culling
+  else glDisable(GL_CULL_FACE); 
+  if (doboth) glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+  else glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+
+
   glClearColor(0, 0, 0.2, 0.0);
   glViewport(0,0,screen_width,screen_height);
   glMatrixMode(GL_PROJECTION);
@@ -1144,16 +882,23 @@ void display(void)
   }
   list<string> qq;
   list<vector<vec3>> seen;
+  int rsize = regions.size();
+  vector<bool> mapmap(rsize,false);
+  int mapcount = 0;
   qq.push_back("");
   int compound = 0;
   while (!qq.empty()) {
     trans = qq.front();
     qq.pop_front();
     vector<vec3> newpoints;
-    int rsize = regions.size();
     for (int i = 0; i < rsize; i++) {
       if (!snubify || regions[i][3] == 1) {
-        newpoints.push_back(apply(trans,regionpoints[i]));
+        vec3 pp = apply(trans,regionpoints[i]);
+        if (!mapmap[i] && approxeq(pp,regionpoints[0])) {
+          mapmap[i] = true;
+          mapcount++;
+        }
+        newpoints.push_back(pp);
       }
     }
     bool done = false;
@@ -1175,12 +920,19 @@ void display(void)
         qq.push_back(trans+"R");
       }
       if (!facecolour) setColour(facecolours[compound%nfacecolours]);
-      //printf("Drawing %d %s\n", compound, trans.c_str());
+      glFrontFace(trans.length()%2 == 0 ? GL_CCW : GL_CW);
       drawone();
       compound++;
       if (!docompound) break;
     }
   }
+#if 0
+  static int lastmapcount = -1;
+  if (mapcount != lastmapcount){
+    lastmapcount = mapcount;
+    printf("Mapcount: %d %d\n", mapcount, rsize);
+  }
+#endif
   static int lastcompound = -1;
   if (compound != lastcompound){
     lastcompound = compound;
@@ -1198,6 +950,17 @@ void display(void)
 void keyboard(unsigned char p_key, int p_x, int p_y)
 {  
   switch (p_key) {
+  case 'j':
+    docull = !docull;
+    break;
+  case 'b':
+    doboth = !doboth;
+    printf("doboth = %d\n", doboth);
+    break;
+  case 'n':
+    normalx = !normalx;
+    printf("normalx = %d\n", normalx);
+    break;
   case 'f':
     facecolour = !facecolour;
     break;
@@ -1209,7 +972,7 @@ void keyboard(unsigned char p_key, int p_x, int p_y)
     rotonly = !rotonly;
     break;
   case 'c':
-    docompound = !docompound;
+    if (length(ip) > eps) docompound = !docompound;
     break;
   case 'l':
     dolog = true;
@@ -1331,7 +1094,6 @@ int main(int argc, char **argv)
     iargs[1] = atoi(argv[4]);
     iargs[2] = atoi(argv[5]);
     makeico(iargs);
-    docompound = true;
 #if 0
     float theta = pi/4;
     ip = zrot(ip,theta);
@@ -1339,33 +1101,6 @@ int main(int argc, char **argv)
     ir = zrot(ir,theta);
 #endif
   }
-  // Make triangle adjacency map
-#if 0
-  {
-    int n = regions.size();
-    adjacent.resize(n);
-    for (int i = 0; i < n; i++) {
-      int total = 0;
-      for (int j = 0; j < n; j++) {
-        // Find triangle that differs from face[i] only in jth vertex
-        int c = 0;
-        int d = 0;
-        for (int k = 0; k < 3; k++) {
-          if (regions[i][k] == regions[j][k]) {
-            c++;
-          } else {
-            d = k;
-          }
-        }
-        if (c == 2) {
-          adjacent[i][d] = j;
-          total++;
-        }
-      }
-      assert(total == 3);
-    }
-  }
-#endif
   {
     int npoints = points.size();
     for (int i = 0; i < npoints; i++) {
@@ -1404,6 +1139,9 @@ int main(int argc, char **argv)
   interpolator.add(vec3(-1,1,1));
   interpolator.add(vec3(1,-1,1));
 #else
+  interpolator.add(vec3(0,1,0));
+  interpolator.add(vec3(0,1,1));
+  interpolator.add(vec3(0,0,1));
   interpolator.add(vec3(1,1,1));
   interpolator.add(vec3(1,0,0));
   interpolator.add(vec3(1,1,0));

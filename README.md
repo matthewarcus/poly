@@ -8,7 +8,7 @@ Usage eg. with 3 args:
 
 ./poly --zrot 4 2 3 3 2 3 5
 
-Displays polyhedra based on 4 2 3 Schwarz triangle, with additional compounds according to 4 3 2 symmetry. With "rotations only" ('x' key) and compound colours ('f' key), shows compound of 5 tetrahedra,
+Displays polyhedron based on 4 2 3 Schwarz triangle, with additional compounds according to 2 3 5 symmetry. With "rotations only" ('x' key) and compound colours ('f' key), shows compound of 5 tetrahedra.
 
 Various keyboard commands:
 

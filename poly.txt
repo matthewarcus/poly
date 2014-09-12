@@ -1,0 +1,92 @@
+Todo
+----
+
+Draw main polyhedra as a triangulation of Schwarz triangle. Then have smooth animation to dual form. Centre is Wythoff point.
+
+Also, this avoids working out what faces are what - each ST is independent (and can be configured from some barycentric coords).
+
+// The classics
+// ./poly 2 3 3
+// ./poly 2 3 4
+// ./poly 2 3 5
+// Nice snub forms
+// ./poly 3 5/2 5/3  // All 4 colours in snub - also stellation to infinity.
+// ./poly 5/2 3/2 3/2 // Excellent dual animation
+// ./poly 2 3/2 5/3 // Strange incomplete dual momentary form.
+// ./poly 3 2 5/3    // Nice duals
+// ./poly 2 2 37/19  // Nice in wireframe
+// ./poly 3/2 3/2 3/2 // "partially degenerate" dual - concentric faces in main
+
+// 3 5/3 (3/2 5/2) | is interesting intersection polyhedron
+
+// Check
+//./poly 5 2 3/2
+//Snubification failure: 1.05876 1.80118 8.79375e-05 1.1451e-05
+
+// Compounds
+
+// UC01: 2 3 3 2 3 3: 6 tetrahedra, rotational freedom
+// UC02: 2 3 3 4 2 3: 12 tetrahedra, rotational freedom
+// UC03: ditto, zrot = 0
+// UC04: ditto, zrot = pi/4
+// UC05: 2 3 3 2 3 5, zrot = pi/4, ico rotations
+// UC06: ditto, full ico group
+// UC07-08: 4 2 2 4 2 3, zrot
+// UC09: 4 2 3 2 3 5
+// UC10-11: 3 2 2 3 3 2 + snub + zrot & rot only or not
+// UC12:  --zrot -6 3 2 2 3 2 4
+// UC13-16: 3 2 4 3 2 5, or 3 2 3 3 2 5, zrot = various
+// UC17: 4 2 3 2 3 5
+// UC18: --zrot 4 2 3 3/2 2 3 5 + I symmetry
+// UC19: 3 2 3/2 3 2 5 with custom zrot
+// UC20-21: 5/2 2 2 10 2 2 + zrot
+// UC22-23: 3 2 2 12 2 2 + zrot + snub
+// UC24-25: 5/2 2 2 10 2 2 + zrot + snub
+// UC26-27: --zrot -10 5 2 2 5 3 2 with snub (or variable zrot)
+// UC28-29: --zrot 10 5/3 2 2 5 3 2 with snub
+// UC30-32: --zrot -6 3 2 2 3 4 2
+// UC32-33: 3 2 2 3 2 5 with zrot = pi/6 & rot only or not
+// UC34-35: 5 2 2 5 3 2 with zrot = pi/10 & rot only or not
+// UC36-37: 5/2 2 2 5 3 2 with zrot = pi/10 & rot only or not (need pentacle form).
+// UC38: --zrot 6 6 2 2 3 2 4
+// UC39: --zrot 6 6 2 2 3 2 5
+// UC40: --zrot 10 10 2 2 5 2 3
+// UC41: --zrot 10 10/3 2 2 5 2 3
+// UC42-43: 4 2 2 4 3 2
+// UC44-45: 5/2 2 2 5 3 2 zrot something...
+// UC46: --zrot 4 2 3 5 4 3 2
+// UC46: 2 3 3 2 3 3 as snub
+// UC47: 2 5 3 2 3 5
+// UC48: --zrot 4 2 5 5/2 4 3 2
+// UC49: 2 5/2 5 2 3 5
+// UC50: --zrot 4 2 5 5/2 4 3 2
+// UC51: 2 5/2 5 2 3 5
+// UC52: 2 3/2 3/2 2 3/2 3/2  (as snub)
+// UC53: 2 3 5/2 2 3 5
+// UC54: --zrot 4 2 3 3 4 2 3
+// UC55-56: as UC05-06
+// UC57: 4 2 3 2 3 5
+// UC58: 4/3 2 3 2 3 5
+// UC59: 4 2 3 2 3 5
+// UC60: 4/3 4 3 2 3 5
+// UC61: ./poly --zrot 8 3 3 3/2 3 2 5 (approx) ???
+// UC62: 4 2 3 2 3 5
+// UC63: 4 2 3/2 2 3 5 (omit blue face 3)
+// UC64: 4 4 3/2 2 3 5
+// UC65: 4 4/3 3 2 3 5
+// UC66: --zrot 4 4/3 3/2 2 2 3 5 (omit green face 2)
+// UC67: 4 2 3/2 2 3 5
+// UC68: 2 3 4 2 3 4
+// UC69: 2 3 5 2 3 5
+// UC70: 2 5/2 3 2 3 5
+// UC71: 2 5/3 3 2 3 5
+// UC72: 2 5/3 3/2 2 3 5
+// UC73: 2 5 5/2 2 3 5
+// UC74: 2 5 5/3 2 3 5
+// UC75: 3 5 5/3 3 2 5
+
+Interesting stellations:
+
+[ 7, 16, 2 ] : just tips of star
+[ 17, 16, 2 ] : infinity
+[ 12, 7, 17 ] :  & beyond

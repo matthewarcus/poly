@@ -25,6 +25,12 @@ std::ostream &operator<<(std::ostream &str, const glm::vec3 &a)
    return str;
 }
 
+std::ostream &operator<<(std::ostream &str, const glm::vec4 &a)
+{
+   str << "[ " << a.x << ", " << a.y << ", " << a.z << ", " << a.w << " ]";
+   return str;
+}
+
 glm::vec4 black( 0, 0, 0, 1 );
 glm::vec4 white( 1, 1, 1, 1 );
 glm::vec4 red( 1, 0, 0, 1 );

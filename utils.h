@@ -33,12 +33,12 @@ std::ostream &operator<<(std::ostream &str, const glm::vec4 &a)
 
 glm::vec4 black( 0, 0, 0, 1 );
 glm::vec4 white( 1, 1, 1, 1 );
-glm::vec4 red( 1, 0, 0, 1 );
-glm::vec4 pink( 1, 0.5, 0.5, 1 );
+glm::vec4 red( 1, 0.1, 0.1, 1 );
+glm::vec4 pink( 1, 0.8, 0.8, 1 );
 glm::vec4 grey( 0.5, 0.5, 0.5, 1 );
-glm::vec4 orange( 1, 0.5, 0, 1 );
-glm::vec4 green( 0, 1, 0, 1 );
-glm::vec4 blue( 0, 0, 1, 1 );
+glm::vec4 orange( 1, 0.4, 0, 1 );
+glm::vec4 green( 0.1, 1, 0.1, 1 );
+glm::vec4 blue( 0.1, 0.1, 1, 1 );
 glm::vec4 yellow( 1, 1, 0, 1 );
 glm::vec4 cyan( 0, 1, 1, 1 );
 glm::vec4 magenta( 1, 0, 1, 1 );

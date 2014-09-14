@@ -12,7 +12,7 @@ Also, this avoids working out what faces are what - each ST is independent (and 
 // Nice snub forms
 // ./poly 3 5/2 5/3  // All 4 colours in snub - also stellation to infinity.
 // ./poly 5/2 3/2 3/2 // Excellent dual animation
-// ./poly 2 3/2 5/3 // Strange incomplete dual momentary form.
+// ./poly 2 3/2 5/3 // incomplete dual form.
 // ./poly 3 2 5/3    // Nice duals
 // ./poly 2 2 37/19  // Nice in wireframe
 // ./poly 3/2 3/2 3/2 // "partially degenerate" dual - concentric faces in main

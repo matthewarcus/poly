@@ -33,10 +33,13 @@ int style = 0;
 bool facecolor = true;
 bool doinvert = true;
 
+bool dolog = false;
+
 int nstyles = 2;
 static const double pi = 3.14159265358979324;
 static const double twopi = 2*pi;
 double eps = 1e-4;
+double meps = 1e4;
 
 // Trilinears
 vec3 afact; // Use to translate between trilinear and barycentric coords
@@ -70,8 +73,7 @@ vec3 facecentres;
 std::vector<vec3> snubcentres;
 
 // Color and lighting
-// TBD: find some nicer combinations
-vec4 *facecolors[] = { &red, &green, &blue, &yellow, &cyan, &white, &pink, &orange, &purple, &grey };
+vec4 *facecolors[] = { &red, &green, &blue, &yellow, &white, &magenta, &cyan, &orange, &purple, &grey };
 int nfacecolors = 10;
 
 // Whether to display faces
@@ -158,7 +160,7 @@ vec3 reflect(vec3 p, vec3 q, vec3 r)
 // Interface to OpenGL
 void setColor(const vec4 &color);
 void setNormal(const vec3 &norm);
-void drawvertex(vec4 p);
+void drawvertex(const vec4 &p, const vec3 &offset);
 
 // Initialization functions
 
@@ -348,13 +350,31 @@ void setpointface(int k, int v, std::vector<int> &facelist)
   facecentres[k] = len;
 }
 
+vec3 getnormal0(const vec4 &p0, const vec4 &p1, const vec4 &p2)
+{
+  // Avoid multiplying by infinity (it's the same as dividing by zero).
+  vec3 d1;
+  if (p1[3] > meps) d1 = vec3(p0/p0[3]);
+  else d1 = vec3(p1) - vec3(p0*p1[3]/p0[3]);
+  vec3 d2;
+  if (p2[3] > meps) d2 = vec3(p0/p0[3]);
+  else d2 = vec3(p2) - vec3(p0*p2[3]/p0[3]);
+  return cross(d1,d2);
+}
+
 vec3 getnormal(const vec4 &p0, const vec4 &p1, const vec4 &p2)
 {
-  // TBD: this needs to be more complicated
+#if 1
+  if (fabs(p0[3] > eps)) return getnormal0(p0,p1,p2);
+  else if (fabs(p1[3] > eps)) return getnormal0(p1,p2,p0);
+  else if (fabs(p2[3] > eps)) return getnormal0(p2,p0,p1);
+  else assert(0);
+#else
   vec3 q0 = vec3(p0)/p0[3];
   vec3 q1 = vec3(p1)/p1[3];
   vec3 q2 = vec3(p2)/p2[3];
   return cross(q1-q0,q2-q0);
+#endif
 }
 
 void drawtriangle0(const vec4 &p0, const vec4 &p1, const vec4 &p2,
@@ -362,14 +382,17 @@ void drawtriangle0(const vec4 &p0, const vec4 &p1, const vec4 &p2,
                    const vec3 &offset)
 {
   vec3 norm = getnormal(p0,p1,p2);
+  if (dolog) {
+    std::cout << "Normal:" << norm << p0 << p1 << p2 << "\n";
+  }
   if (length(norm) > eps) {
     setNormal(normalize(norm));
     setColor(c0);
-    drawvertex(p0+vec4(offset*p0[3],0));
+    drawvertex(p0,offset);
     setColor(c1);
-    drawvertex(p1+vec4(offset*p1[3],0));
+    drawvertex(p1,offset);
     setColor(c2);
-    drawvertex(p2+vec4(offset*p2[3],0));
+    drawvertex(p2,offset);
   }
 }
 
@@ -398,7 +421,7 @@ void drawpointface(int k, int v, std::vector<int> &facelist, int snubface)
   int npoints = plist.size();
   if (npoints <= 2) return;
   vec3 centre = facecentres[k]*points[v];
-  vec3 offset = explode*centre;
+  vec3 offset = centre;
   int color = facecolor ? k : compound;
   if (npoints == 3) {
     drawtriangle0(plist[0],plist[1],plist[2],
@@ -415,20 +438,31 @@ void drawpointface(int k, int v, std::vector<int> &facelist, int snubface)
   }
 }
 
+int imax = 300;
+int ifact = 0;
+int iinc = -1;
+
 vec4 invert(float r2, const vec4 &p4)
 {
   vec3 p = vec3(p4);
   float w = p4[3];
-#if 1
-  // TBD: Why does this work & not the other way?
-  if (fabs(1/w) < eps) {
-    return vec4(p,eps*eps); // OpenGL doesn't like 0 here
-  } else {
-    return vec4(p*r2*p4[3],dot(p,p));
-  }
+  assert(w >= 0);
+  assert(r2 >= 0);
+#if 0
+  // Cute animation. Needs fixing for points at infinity.
+  float k = dot(p,p)/(r2*w);
+  float t = (w+(k-w)*float(ifact)/imax);
+  return vec4(p,t); 
 #else
-  return vec4(p,dot(p,p)/(r2*w));
+  float k = dot(p,p)/(r2*w);
+  return vec4(p,k);
 #endif
+}
+
+vec4 makevec4(const vec3 &p, float k)
+{
+  if (k < 0) return vec4(-p,-k);
+  else return vec4(p,k);
 }
 
 void drawregion(int r) {
@@ -436,15 +470,18 @@ void drawregion(int r) {
   for (int i = 0; i < 3; i++) {
     int v = regions[r][i];
     float len = facecentres[i];
-    vec4 p = vec4(points[v],1/len);
+    vec4 p = makevec4(points[v],1/len);
+    if (dolog) std::cout << "# A: " << p << "\n";
     if (doinvert) p = invert(midsphere2,p);
+    if (dolog) std::cout << "# B: " << p << "\n";
     plist.push_back(p);
   }
   if (regions[r][3] < 0) std::swap(plist[1],plist[2]);
   assert(length(regionpoints[r]) > eps);
-  vec4 centre = vec4(regionpoints[r],1);
+  vec4 centre = makevec4(regionpoints[r],1);
   if (doinvert) centre = invert(midsphere2,centre);
-  vec3 offset = explode*vec3(centre);
+  if (dolog) std::cout << "Centre: " << centre << "\n";
+  vec3 offset = vec3(centre);
   if (style == 0) {
     // TBD: use compound color here too.
     int color = (regions[r][3] < 0) ? 3 : 4;
@@ -491,7 +528,7 @@ void drawsnubface(int i)
   }
   centre /= 3.0f;
   if (regions[i][3] > 0) std::swap(triangle[1],triangle[2]);
-  vec3 offset = explode*vec3(centre);
+  vec3 offset = vec3(centre);
   int color;
   if (facecolor) {
     color = 3;
@@ -591,7 +628,7 @@ void drawDual()
         assert(length(regionpoints[i]) > eps);
         vec4 centre = vec4(regionpoints[i],1);
         if (doinvert) centre = invert(snubsphere2,centre);
-        vec3 offset = explode*vec3(centre);
+        vec3 offset = vec3(centre);
         for (int k = 0; k < N; k++) {
           int p1 = k;
           int p2 = (k+1)%N;
@@ -677,8 +714,6 @@ GLfloat mat_specular[]= { 0, 0, 0, 0 };
 GLfloat mat_shininess = 100;
 GLfloat specular = 1;
 
-bool dolog = false;
-
 void setColor(const vec4 &color)
 {
   if (dolog) {
@@ -710,23 +745,16 @@ void setNormal(const vec3 &norm)
   glNormal3fv(glm::value_ptr(n));
 }
 
-void drawvertex(vec4 p)
+void drawvertex(const vec4 &p, const vec3 &offset)
 {
-  if (p[3] > 1e5) p = vec4(0,0,0,1);
-  vec3 p0(p);
-  p0 = apply(trans,p0);
-  //assert(p[3] >= 0);
-  if (p[3] < 0) { p0 = -p0; p[3] = -p[3]; }
-  //if (p[3] < eps) p[3] = 0;
-  if (dolog) printf("vertex %g %g %g %g\n", p0[0], p0[1], p0[2], p[3]);
-  glVertex4f(size*p0[0],size*p0[1],size*p0[2],p[3]);
-}
-
-void drawvertex(vec3 p)
-{
-  p = apply(trans,p);
-  if (dolog) printf("vertex %g %g %g %g\n", p[0], p[1], p[2], 1.0f);
-  glVertex4f(size*p[0],size*p[1],size*p[2],1);
+  assert(p[3] >= 0);
+  vec4 p0 = vec4(apply(trans,vec3(p)),p[3]);
+  if (p[3] > meps) p0 = vec4(0,0,0,1);
+  if (explode != 0) {
+    p0 += vec4(explode*offset*p0[3],0);
+  }
+  if (dolog) printf("vertex %g %g %g %g\n", p0[0], p0[1], p0[2], p0[3]);
+  glVertex4f(size*p0[0],size*p0[1],size*p0[2],p0[3]);
 }
 
 void drawone()
@@ -801,6 +829,10 @@ void display(void)
             snubify?" snub":"",
             drawtype);
   }
+
+  ifact += iinc;
+  if (ifact < 0) ifact = 0;
+  if (ifact > imax) ifact = imax;
 
   rotx += rotxinc;
   roty += rotyinc;
@@ -910,6 +942,7 @@ void keyboard(unsigned char p_key, int p_x, int p_y)
   switch (p_key) {
   case 'i':
     doinvert = !doinvert;
+    iinc = -iinc;
     needparams = true;
     break;
   case 'b':

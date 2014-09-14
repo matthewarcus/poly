@@ -383,7 +383,7 @@ void drawtriangle0(const vec4 &p0, const vec4 &p1, const vec4 &p2,
 {
   vec3 norm = getnormal(p0,p1,p2);
   if (dolog) {
-    std::cout << "Normal:" << norm << p0 << p1 << p2 << "\n";
+    std::cout << "# Normal:" << norm << p0 << p1 << p2 << "\n";
   }
   if (length(norm) > eps) {
     setNormal(normalize(norm));
@@ -480,7 +480,7 @@ void drawregion(int r) {
   assert(length(regionpoints[r]) > eps);
   vec4 centre = makevec4(regionpoints[r],1);
   if (doinvert) centre = invert(midsphere2,centre);
-  if (dolog) std::cout << "Centre: " << centre << "\n";
+  if (dolog) std::cout << "# Centre: " << centre << "\n";
   vec3 offset = vec3(centre);
   if (style == 0) {
     // TBD: use compound color here too.
@@ -697,6 +697,11 @@ double tt = 0;
 float ttinc = 0.0015;
 vec3 abc;
 
+// If video true, don't resize the viewport
+bool video = false;
+// Are we actually capturing video
+bool videocapture = false;
+
 // Lights settings
 float amb = 0.2;
 float diff = 0.2;
@@ -785,13 +790,16 @@ void init(void)
   glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
   glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
   glEnable(GL_DEPTH_TEST);
+  glPixelStorei(GL_PACK_ALIGNMENT,1);
 }
 
 void resize (int p_width, int p_height)
 {
-  assert(screen_width != 0 && screen_height != 0);
-  screen_width = p_width;
-  screen_height = p_height;
+  // Don't reset the viewport dimensions if we are making a movie!
+  if (!video) {
+    screen_width = p_width;
+    screen_height = p_height;
+  }
   glutPostRedisplay ();
 }
 
@@ -822,9 +830,9 @@ void display(void)
 {
   if (dolog) {
     printf ("start\n");
-    printf (";; %d/%d %d/%d %d/%d\n", 
+    printf ("# %d/%d %d/%d %d/%d\n", 
             args[0],args[1],args[2],args[3],args[4],args[5]);
-    printf (";; %g %g %g%s: %d\n",
+    printf ("# %g %g %g%s: %d\n",
             abc[0],abc[1],abc[2],
             snubify?" snub":"",
             drawtype);
@@ -925,14 +933,25 @@ void display(void)
   static int lastcompound = -1;
   if (compound != lastcompound){
     lastcompound = compound;
-    printf("Compound: %d (%d points)\n",
-           compound, (int)seen[0].size());
+    fprintf(stderr,
+            "Compound: %d (%d points)\n",
+            compound, (int)seen[0].size());
   }
   if (dolog) {
     printf ("end\n");
     dolog = false;
   }
   glFlush();
+  if (videocapture) {
+    // Use, for example (for an HD YouTube video):
+    // ./poly --video --width 1280 --height 720 5 3 2 | 
+    // avconv -f rawvideo -pix_fmt rgb24 -s 1280x720 -i pipe:0 -crf 1 -vcodec libx264 foo264.avi   
+    // Write pixel data out
+    static size_t nbytes = 3*screen_width*screen_height;
+    static char* framedata = new char[nbytes];
+    glReadPixels(0,0,screen_width,screen_height,GL_RGB,GL_UNSIGNED_BYTE,framedata);
+    fwrite(framedata,1,nbytes,stdout);
+  }
   glutSwapBuffers();
 }
 
@@ -940,6 +959,9 @@ void display(void)
 void keyboard(unsigned char p_key, int p_x, int p_y)
 {  
   switch (p_key) {
+  case 'h':
+    videocapture = !videocapture;
+    break;
   case 'i':
     doinvert = !doinvert;
     iinc = -iinc;
@@ -947,14 +969,14 @@ void keyboard(unsigned char p_key, int p_x, int p_y)
     break;
   case 'b':
     doboth = !doboth;
-    printf("doboth = %d\n", doboth);
+    fprintf(stderr,"doboth = %d\n", doboth);
     break;
   case 'f':
     facecolor = !facecolor;
     break;
   case 'z':
     dozrot = !dozrot;
-    if (!dozrot) printf("zrot = %f\n", pi/zrottot);
+    if (!dozrot) fprintf(stderr,"zrot = %f\n", pi/zrottot);
     break;
   case 'x':
     rotonly = !rotonly;
@@ -1057,7 +1079,18 @@ int main(int argc, char **argv)
   //char *progname = argv[0];
   argc--; argv++;
   while (true) {
-    if (strcmp(argv[0],"--zrot") == 0) {
+    if (strcmp(argv[0],"--width") == 0) {
+      argc--; argv++;
+      screen_width = atoi(argv[0]);
+      argc--; argv++;
+    } else if (strcmp(argv[0],"--height") == 0) {
+      argc--; argv++;
+      screen_height = atoi(argv[0]);
+      argc--; argv++;
+    } else if (strcmp(argv[0],"--video") == 0) {
+      video = true;
+      argc--; argv++;
+    } else if (strcmp(argv[0],"--zrot") == 0) {
       argc--; argv++;
       zrotarg = atoi(argv[0]);
       argc--; argv++;

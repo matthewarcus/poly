@@ -12,9 +12,9 @@ Usage eg. with 3 args:
 
 Displays polyhedron based on 2 3 5 Schwarz triangle (ie. basic icosahedral symmetry).
 
-./poly --zrot 4 2 3 3 2 3 5
+./poly --zrot 4 2 3 3/2 2 3 5
 
-Basic polyhedron 2 3 3/2, with compounding according to 2 3 5 symmetry.
+Basic polyhedron 2 3 3/2, with compounding according to 2 3 5 symmetry. Initial zrotation pi/4
 
 Various keyboard commands:
 

@@ -4,6 +4,7 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <algorithm>
 #include <assert.h>
 
 // Need this to avoid a glm warning
@@ -35,7 +36,7 @@ bool doinvert = true;
 
 bool dolog = false;
 
-int nstyles = 2;
+int nstyles = 3;
 static const double pi = 3.14159265358979324;
 static const double twopi = 2*pi;
 double eps = 1e-4;
@@ -71,6 +72,7 @@ std::vector<vec3> regionpoints; // Region point in Wythoff construction
 // Distance of face centre from origin.
 vec3 facecentres;
 std::vector<vec3> snubcentres;
+vec4 edgecentres[3]; // Barycentric coords of edge centres
 
 // Color and lighting
 vec4 *facecolors[] = { &red, &green, &blue, &yellow, &white, &magenta, &cyan, &orange, &purple, &grey };
@@ -153,6 +155,13 @@ vec3 reflect(vec3 p, vec3 q, vec3 r)
   // Reflect r in the plane of p and q (and the origin)
   vec3 n = normalize(cross(p,q));
   return r - 2*dot(n,r)*n;
+}
+
+vec3 closest(vec3 p, vec3 q, vec3 r)
+{
+  // Closest point to r in the plane of p and q (and the origin)
+  vec3 n = normalize(cross(p,q));
+  return r - dot(n,r)*n;
 }
 
 // Drawing functions
@@ -448,11 +457,11 @@ vec4 invert(float r2, const vec4 &p4)
   float w = p4[3];
   assert(w >= 0);
   assert(r2 >= 0);
-#if 0
-  // Cute animation. Needs fixing for points at infinity.
-  float k = dot(p,p)/(r2*w);
-  float t = (w+(k-w)*float(ifact)/imax);
-  return vec4(p,t); 
+#if 1
+  // w might be infinity!
+  float k = dot(p,p)/(r2*w*w);
+  float t = 1+(k-1)*float(ifact)/imax;
+  return vec4(p,t*w); 
 #else
   float k = dot(p,p)/(r2*w);
   return vec4(p,k);
@@ -468,27 +477,37 @@ vec4 makevec4(const vec3 &p, float k)
 void drawregion(int r) {
   std::vector <vec4> plist;
   for (int i = 0; i < 3; i++) {
-    int v = regions[r][i];
-    float len = facecentres[i];
-    vec4 p = makevec4(points[v],1/len);
-    if (dolog) std::cout << "# A: " << p << "\n";
-    if (doinvert) p = invert(midsphere2,p);
-    if (dolog) std::cout << "# B: " << p << "\n";
-    plist.push_back(p);
+    {
+      int v = regions[r][i];
+      float len = facecentres[i];
+      vec4 p = makevec4(points[v],1/len);
+      if (doinvert) p = invert(midsphere2,p);
+      plist.push_back(p);
+    }
+    if (style == 2) {
+      const vec4 &e = edgecentres[i];
+      vec4 p =
+        vec4 (e[0]*points[regions[r][0]] +
+              e[1]*points[regions[r][1]] +
+              e[2]*points[regions[r][2]],
+              e[3]);
+      if (doinvert) p = invert(midsphere2,p);
+      plist.push_back(p);
+    }
   }
-  if (regions[r][3] < 0) std::swap(plist[1],plist[2]);
+  int npoints = plist.size();
+  if (regions[r][3] < 0) std::reverse(plist.begin(),plist.end());
   assert(length(regionpoints[r]) > eps);
   vec4 centre = makevec4(regionpoints[r],1);
   if (doinvert) centre = invert(midsphere2,centre);
-  if (dolog) std::cout << "# Centre: " << centre << "\n";
   vec3 offset = vec3(centre);
   if (style == 0) {
     // TBD: use compound color here too.
     int color = (regions[r][3] < 0) ? 3 : 4;
     drawtriangle0(plist[0],plist[1],plist[2],*facecolors[color],offset);
   } else {
-    for (int i = 0; i < 3; i++) {
-      int p1 = i, p2 = (i+1)%3;
+    for (int i = 0; i < npoints; i++) {
+      int p1 = i, p2 = (i+1)%npoints;
       drawtriangle0(centre,plist[p1],plist[p2],
                     white, *facecolors[p1], *facecolors[p2],
                     offset);
@@ -556,8 +575,13 @@ vec4 getbary(const vec3 &p, const vec3 &q, const vec3 &r, const vec4 &t)
   float A = dot(t3,P);
   float B = dot(t3,Q);
   float C = dot(t3,R);
-  vec4 s = vec4(vec3(A,B,C),k*t[3]);
+  vec4 s = makevec4(vec3(A,B,C),k*t[3]);
   return s;
+}
+
+vec4 getbary(const vec3 &p, const vec3 &q, const vec3 &r, const vec3 &t)
+{
+  return getbary(p,q,r,vec4(t,1));
 }
 
 void drawinit()
@@ -576,6 +600,15 @@ void drawinit()
       setpointface(i,j.first,j.second);
       break;
     }
+  }
+  {
+    vec3 s = regionpoints[0];
+    vec3 p = points[0];
+    vec3 q = points[1];
+    vec3 r = points[2];
+    edgecentres[0] = getbary(p,q,r,closest(p,q,s));
+    edgecentres[1] = getbary(p,q,r,closest(q,r,s));
+    edgecentres[2] = getbary(p,q,r,closest(r,p,s));
   }
   for (int i = 0; i < (int)regions.size(); i++) {
     setsnubface(i);
@@ -963,7 +996,7 @@ void keyboard(unsigned char p_key, int p_x, int p_y)
     videocapture = !videocapture;
     break;
   case 'i':
-    doinvert = !doinvert;
+    //doinvert = !doinvert;
     iinc = -iinc;
     needparams = true;
     break;
